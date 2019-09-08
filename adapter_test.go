@@ -193,7 +193,7 @@ func TestAdapter_MentionBotPrefix(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.I}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.ID}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
