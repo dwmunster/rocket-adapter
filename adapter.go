@@ -18,6 +18,8 @@ import (
 const bufsz = 10
 const myMsgs = "__my_messages__"
 
+// IDGen represents the capacity to generate unique ID for each message, as rocket.chat requires.
+// ksuids would be great, but that would be an external dependency.
 type IDGen interface {
 	Seed(int64)
 	ID() string
