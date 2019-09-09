@@ -38,8 +38,9 @@ type BotAdapter struct {
 	usersMu sync.RWMutex
 	users   map[string]joe.User
 
-	rooms   map[string]models.Channel
-	roomsMu sync.RWMutex
+	rooms      map[string]models.Channel
+	idFromName map[string]string
+	roomsMu    sync.RWMutex
 
 	idgen IDGen
 }
@@ -135,14 +136,15 @@ func newAdapter(ctx context.Context, client rocketAPI, conf Config, gen IDGen) (
 	}
 
 	a := &BotAdapter{
-		rocket:   client,
-		context:  ctx,
-		logger:   conf.Logger,
-		users:    map[string]joe.User{}, // TODO: cache expiration?
-		rooms:    map[string]models.Channel{},
-		messages: msgCh,
-		user:     user,
-		idgen:    gen,
+		rocket:     client,
+		context:    ctx,
+		logger:     conf.Logger,
+		users:      map[string]joe.User{}, // TODO: cache expiration?
+		rooms:      map[string]models.Channel{},
+		messages:   msgCh,
+		user:       user,
+		idgen:      gen,
+		idFromName: map[string]string{},
 	}
 
 	if a.logger == nil {
@@ -191,19 +193,22 @@ func (a *BotAdapter) handleMessageEvent(msg models.Message, brain *joe.Brain) {
 		// msg not for us!
 		return
 	}
-
+	rid := channel.Name
+	if direct {
+		rid = channel.ID
+	}
 	text := strings.TrimSpace(strings.TrimPrefix(msg.Msg, selfLink))
 	brain.Emit(joe.ReceiveMessageEvent{
 		Text:     text,
-		Channel:  channel.ID,
+		Channel:  rid,
 		AuthorID: msg.User.ID,
 		Data:     msg,
 	})
 }
 
-func (a *BotAdapter) roomByID(roomID string) models.Channel {
+func (a *BotAdapter) roomByID(rid string) models.Channel {
 	a.roomsMu.RLock()
-	room, ok := a.rooms[roomID]
+	room, ok := a.rooms[rid]
 	a.roomsMu.RUnlock()
 	if ok {
 		return room
@@ -211,14 +216,14 @@ func (a *BotAdapter) roomByID(roomID string) models.Channel {
 
 	err := a.updateRooms()
 	if err != nil {
-		return models.Channel{ID: roomID}
+		return models.Channel{ID: rid}
 	}
 
-	room, ok = a.rooms[roomID]
+	room, ok = a.rooms[rid]
 	if ok {
 		return room
 	}
-	return models.Channel{ID: roomID}
+	return models.Channel{ID: rid}
 }
 
 func (a *BotAdapter) updateRooms() error {
@@ -234,6 +239,18 @@ func (a *BotAdapter) updateRooms() error {
 
 	for _, ch := range chs {
 		a.rooms[ch.ID] = ch
+		var name string
+		t := ch.Type
+		switch t {
+		case "c", "p":
+			name = ch.Name
+		case "d":
+			name = ch.ID
+		default:
+			a.logger.Warn("did not understand channel type", zap.String("type", t), zap.String("id", ch.ID))
+			name = ch.ID
+		}
+		a.idFromName[name] = ch.ID
 	}
 	return nil
 }
@@ -241,14 +258,19 @@ func (a *BotAdapter) updateRooms() error {
 // Send implements joe.Adapter by sending all received text messages to the
 // given rocket.chat channel ID.
 func (a *BotAdapter) Send(text, channelID string) error {
-	a.logger.Info("Sending message to channel",
-		zap.String("channel_id", channelID),
-		// do not leak actual message content since it might be sensitive
-	)
 
-	ch := a.roomByID(channelID)
+	cid, ok := a.idFromName[channelID]
+	if !ok {
+		return errors.New(fmt.Sprintf("could not find channel name: '%s'", channelID))
+	}
+	ch := a.roomByID(cid)
 
 	msg := a.newMessage(&ch, text)
+
+	a.logger.Info("Sending message to channel",
+		zap.String("channelID", channelID),
+		// do not leak actual message content since it might be sensitive
+	)
 	_, err := a.rocket.SendMessage(msg)
 
 	return err

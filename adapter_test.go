@@ -165,7 +165,7 @@ func TestAdapter_MentionBot(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.ID, AuthorID: dummyUser.ID, Data: msg}
+	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.Name, AuthorID: dummyUser.ID, Data: msg}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -193,7 +193,7 @@ func TestAdapter_MentionBotPrefix(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.ID}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.Name}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -208,7 +208,7 @@ func TestAdapter_Send(t *testing.T) {
 		},
 	).Return(&models.Message{}, nil)
 
-	err := a.Send("Hello World", dummyRoom.ID)
+	err := a.Send("Hello World", dummyRoom.Name)
 	require.NoError(t, err)
 	rocketAPI.AssertExpectations(t)
 }
