@@ -11,6 +11,7 @@ import (
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 	rt "github.com/RocketChat/Rocket.Chat.Go.SDK/realtime"
 	"github.com/go-joe/joe"
+	"github.com/go-joe/joe/reactions"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -57,7 +58,7 @@ type Config struct {
 
 type rocketAPI interface {
 	SendMessage(message *models.Message) (*models.Message, error)
-	//ReactToMessage(message *models.Message, reaction string) error
+	ReactToMessage(message *models.Message, reaction string) error
 	Login(credentials *models.UserCredentials) (*models.User, error)
 	SubscribeToMessageStream(channel *models.Channel, msgChannel chan models.Message) error
 	Close()
@@ -198,6 +199,7 @@ func (a *BotAdapter) handleMessageEvent(msg models.Message, brain *joe.Brain) {
 		Channel:  channel.ID,
 		AuthorID: msg.User.ID,
 		Data:     msg,
+		ID:       msg.ID,
 	})
 }
 
@@ -274,4 +276,13 @@ func (a *BotAdapter) newMessage(channel *models.Channel, text string) *models.Me
 		Msg:    text,
 		User:   a.user,
 	}
+}
+
+func (a *BotAdapter) React(r reactions.Reaction, msg joe.Message) error {
+	m := &models.Message{ID: msg.ID}
+	err := a.rocket.ReactToMessage(m, ":"+r.Shortcode+":")
+	if err != nil {
+		return errors.Wrapf(err, "Error reacting to message: msg: %s, reaction: %s", msg.ID, r.Shortcode)
+	}
+	return nil
 }
