@@ -6,8 +6,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/go-joe/joe/reactions"
-
 	"github.com/RocketChat/Rocket.Chat.Go.SDK/models"
 
 	"github.com/go-joe/joe"
@@ -139,7 +137,7 @@ func TestAdapter_DirectMessages(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "Hello world", Channel: dummyDM.ID, Data: msg, AuthorID: dummyUser.ID, ID: "0"}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "Hello world", Channel: dummyDM.ID, Data: msg, AuthorID: dummyUser.ID}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -167,7 +165,7 @@ func TestAdapter_MentionBot(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.ID, AuthorID: dummyUser.ID, Data: msg, ID: "0"}
+	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.Name, AuthorID: dummyUser.ID, Data: msg}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -195,7 +193,7 @@ func TestAdapter_MentionBotPrefix(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.ID, ID: "0"}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.Name}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -210,7 +208,7 @@ func TestAdapter_Send(t *testing.T) {
 		},
 	).Return(&models.Message{}, nil)
 
-	err := a.Send("Hello World", dummyRoom.ID)
+	err := a.Send("Hello World", dummyRoom.Name)
 	require.NoError(t, err)
 	rocketAPI.AssertExpectations(t)
 }
@@ -222,23 +220,6 @@ func TestAdapter_Close(t *testing.T) {
 	err := a.Close()
 	require.NoError(t, err)
 	slackAPI.AssertExpectations(t)
-}
-
-func TestAdapter_React(t *testing.T) {
-	a, api := newTestAdapter(t)
-
-	msg := joe.Message{
-		Channel: "C0G9QF9GZ",
-		ID:      "1360782400.498405",
-	}
-
-	m := &models.Message{ID: msg.ID}
-
-	api.On("ReactToMessage", m, ":thumbsup:").Return(nil)
-
-	err := a.React(reactions.Thumbsup, msg)
-	require.NoError(t, err)
-	api.AssertExpectations(t)
 }
 
 type mockRocket struct {
@@ -277,9 +258,4 @@ func (m *mockRocket) GetChannelsIn() (chs []models.Channel, err error) {
 		chs = x.([]models.Channel)
 	}
 	return chs, args.Error(1)
-}
-
-func (m *mockRocket) ReactToMessage(message *models.Message, reaction string) error {
-	args := m.Called(message, reaction)
-	return args.Error(0)
 }
