@@ -137,7 +137,7 @@ func TestAdapter_DirectMessages(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "Hello world", Channel: dummyDM.ID, Data: msg, AuthorID: dummyUser.ID}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "Hello world", Channel: dummyDM.ID, Data: msg, AuthorID: dummyUser.ID, ID: "0"}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -165,7 +165,7 @@ func TestAdapter_MentionBot(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.Name, AuthorID: dummyUser.ID, Data: msg}
+	expectedEvt := joe.ReceiveMessageEvent{Text: msg.Msg, Channel: dummyRoom.Name, AuthorID: dummyUser.ID, Data: msg, ID: "0"}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -193,7 +193,7 @@ func TestAdapter_MentionBotPrefix(t *testing.T) {
 
 	events := brain.RecordedEvents()
 	require.NotEmpty(t, events)
-	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.Name}
+	expectedEvt := joe.ReceiveMessageEvent{Text: "PING", Data: msg, AuthorID: dummyUser.ID, Channel: dummyRoom.Name, ID: "0"}
 	assert.Equal(t, expectedEvt, events[0])
 }
 
@@ -258,4 +258,9 @@ func (m *mockRocket) GetChannelsIn() (chs []models.Channel, err error) {
 		chs = x.([]models.Channel)
 	}
 	return chs, args.Error(1)
+}
+
+func (m *mockRocket) ReactToMessage(msg *models.Message, r string) error {
+	args := m.Called(msg, r)
+	return args.Error(0)
 }
